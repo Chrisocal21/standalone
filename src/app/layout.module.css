@@ -1,0 +1,77 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 32px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper);
+}
+
+.brand {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.navLink {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  border-bottom: 1px solid transparent;
+  padding-bottom: 2px;
+}
+
+.navLink:hover {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.navLinkDisabled {
+  color: var(--ink-faint);
+  cursor: default;
+  position: relative;
+}
+
+.navLinkDisabled::after {
+  content: "soon";
+  margin-left: 6px;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+  border: 1px solid var(--rule-soft);
+  padding: 1px 4px;
+  vertical-align: middle;
+}
+
+.navLinkLogin {
+  color: var(--ink);
+  padding: 6px 14px;
+  border: 1px solid var(--rule);
+}
+
+.navLinkLogin:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.main {
+  flex: 1;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 32px;
+  border-top: 1px solid var(--rule);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+}

@@ -1,0 +1,119 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  background: rgba(20, 22, 26, 0.94);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 24px;
+  border-bottom: 1px solid rgba(244, 241, 232, 0.14);
+  flex-shrink: 0;
+}
+
+.toolbarLeft {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  min-width: 0;
+}
+
+.title {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--paper);
+}
+
+.hint {
+  font-size: 11px;
+  color: rgba(244, 241, 232, 0.5);
+  white-space: nowrap;
+}
+
+.toolbarActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.toolbarActions button {
+  background: transparent;
+  border: 1px solid rgba(244, 241, 232, 0.28);
+  color: var(--paper);
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.toolbarActions button:hover {
+  border-color: var(--paper);
+}
+
+.scaleReadout {
+  font-size: 11px;
+  color: rgba(244, 241, 232, 0.7);
+  min-width: 42px;
+  text-align: center;
+}
+
+.stage {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  touch-action: none;
+}
+
+.stageDragging {
+  cursor: grabbing;
+}
+
+.canvasTransform {
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.canvasCard {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  padding: 32px;
+}
+
+.canvasCard :global(svg) {
+  display: block;
+  width: min(80vw, 900px);
+  height: auto;
+}
+
+.canvasCard :global(text) {
+  font-family: var(--font-mono), monospace;
+  font-size: 5px;
+  font-weight: 500;
+  fill: red;
+  stroke: none;
+}
+
+.canvasCard :global(path) {
+  stroke: var(--ink);
+  stroke-width: 0.5;
+}
+
+@media (max-width: 640px) {
+  .toolbar {
+    flex-wrap: wrap;
+  }
+
+  .hint {
+    display: none;
+  }
+}
