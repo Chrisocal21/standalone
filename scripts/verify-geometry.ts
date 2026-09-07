@@ -1,5 +1,9 @@
 import { BoxSpec, DEFAULT_BOX_SPEC, JOINT_TYPES, LID_STYLES, generateBox, validateBoxSpec } from "../src/lib/geometry";
 import { CylinderSpec, DEFAULT_CYLINDER_SPEC, CYLINDER_LID_STYLES, generateCylinder, validateCylinderSpec } from "../src/lib/shapes";
+import { TraySpec, DEFAULT_TRAY_SPEC, generateTray, validateTraySpec } from "../src/lib/tray";
+import { PegboardSpec, DEFAULT_PEGBOARD_SPEC, generatePegboard, validatePegboardSpec } from "../src/lib/pegboard";
+import { StandSpec, DEFAULT_STAND_SPEC, generateStand, validateStandSpec } from "../src/lib/stand";
+import { ShelfBinSpec, DEFAULT_SHELF_BIN_SPEC, generateShelfBin, validateShelfBinSpec } from "../src/lib/shelf";
 import { boxToSvg } from "../src/lib/svg";
 
 let failures = 0;
@@ -217,6 +221,69 @@ check(
   const radii = inwardPoints.map(([x, y]) => Math.hypot(x - radius, y - radius));
   const expectedInwardRadius = radius - spec.materialThickness;
   check("cylinder notch depth is uniform", radii.every((r) => Math.abs(r - expectedInwardRadius) < 0.01));
+}
+
+// 9. Tray: open box with a divider grid, no lid ever.
+{
+  const spec: TraySpec = { ...DEFAULT_TRAY_SPEC, rows: 2, columns: 3 };
+  check("tray validates clean", validateTraySpec(spec).length === 0);
+  const panels = generateTray(spec);
+  check("tray panel names", JSON.stringify(panels.map((p) => p.name).slice(0, 5)) === JSON.stringify(["front", "back", "left", "right", "bottom"]));
+  const dividerCount = panels.filter((p) => p.name.startsWith("divider-")).length;
+  check("tray divider count", dividerCount === spec.rows + spec.columns);
+  const svg = boxToSvg(panels);
+  check("tray svg has no NaN", svgHasNoNaN(svg));
+  check("tray rejects negative rows", validateTraySpec({ ...DEFAULT_TRAY_SPEC, rows: -1 }).length > 0);
+}
+
+// 10. Pegboard: hole grid + 4 mounting holes, all within panel bounds.
+{
+  const spec: PegboardSpec = { ...DEFAULT_PEGBOARD_SPEC };
+  check("pegboard validates clean", validatePegboardSpec(spec).length === 0);
+  const panel = generatePegboard(spec)[0];
+  const usableW = spec.width - 2 * spec.margin;
+  const usableH = spec.height - 2 * spec.margin;
+  const expectedCols = Math.floor(usableW / spec.holePitch) + 1;
+  const expectedRows = Math.floor(usableH / spec.holePitch) + 1;
+  check("pegboard hole count", panel.holes.length === expectedCols * expectedRows + 4);
+  const allWithinBounds = panel.holes.every((hole) =>
+    hole.every(([x, y]) => x >= 0 && x <= panel.width && y >= 0 && y <= panel.height)
+  );
+  check("pegboard holes within panel bounds", allWithinBounds);
+  check("pegboard rejects pitch <= diameter", validatePegboardSpec({ ...DEFAULT_PEGBOARD_SPEC, holeDiameter: 10, holePitch: 10 }).length > 0);
+  check("pegboard rejects margin leaving no room", validatePegboardSpec({ ...DEFAULT_PEGBOARD_SPEC, margin: 200 }).length > 0);
+}
+
+// 11. Stand: two identical legs, notches meet at the same half-height.
+{
+  const spec: StandSpec = { ...DEFAULT_STAND_SPEC };
+  check("stand validates clean", validateStandSpec(spec).length === 0);
+  const [legA, legB] = generateStand(spec);
+  check("stand legs same size", legA.width === legB.width && legA.height === legB.height);
+  const halfHeight = spec.legHeight / 2;
+  const legAHasNotch = legA.path.some(([, y]) => Math.abs(y - halfHeight) < 1e-6);
+  const legBHasNotch = legB.path.some(([, y]) => Math.abs(y - halfHeight) < 1e-6);
+  check("stand legs notch to matching depth", legAHasNotch && legBHasNotch);
+  check("stand rejects leg width too small", validateStandSpec({ ...DEFAULT_STAND_SPEC, legWidth: 5 }).length > 0);
+  const svg = boxToSvg([legA, legB]);
+  check("stand svg has no NaN", svgHasNoNaN(svg));
+}
+
+// 12. Shelf/bin: open box, back panel gets exactly 2 mounting holes, others none.
+{
+  const spec: ShelfBinSpec = { ...DEFAULT_SHELF_BIN_SPEC };
+  check("shelf validates clean", validateShelfBinSpec(spec).length === 0);
+  const panels = generateShelfBin(spec);
+  const back = panels.find((p) => p.name === "back");
+  check("shelf back panel exists", !!back);
+  if (back) {
+    check("shelf back panel has 2 mounting holes", back.holes.length === 2);
+    const withinBounds = back.holes.every((hole) => hole.every(([x, y]) => x >= 0 && x <= back.width && y >= 0 && y <= back.height));
+    check("shelf mounting holes within bounds", withinBounds);
+  }
+  const others = panels.filter((p) => p.name !== "back");
+  check("shelf other panels have no holes", others.every((p) => p.holes.length === 0));
+  check("shelf rejects mounting hole inset too large", validateShelfBinSpec({ ...DEFAULT_SHELF_BIN_SPEC, mountingHoleInset: 150 }).length > 0);
 }
 
 if (failures === 0) {

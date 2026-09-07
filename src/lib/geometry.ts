@@ -141,13 +141,21 @@ function mortiseTenonEdgePoints(length: number, depth: number, tenonRatio = 0.4)
   ];
 }
 
-function rectPath(width: number, height: number): Point[] {
+export function rectPath(width: number, height: number): Point[] {
   return [
     [0, 0],
     [width, 0],
     [width, height],
     [0, height],
   ];
+}
+
+/** A circle approximated as a many-sided polygon, for holes cut into a panel. */
+export function circlePath([cx, cy]: Point, radius: number, segments = 32): Point[] {
+  return Array.from({ length: segments }, (_, i) => {
+    const angle = (2 * Math.PI * i) / segments;
+    return [cx + radius * Math.cos(angle), cy + radius * Math.sin(angle)] as Point;
+  });
 }
 
 /**
@@ -342,7 +350,7 @@ function notchedEdge(
  * each notch running exactly halfway through the strip's height, so a row
  * strip and a column strip slot together into a lattice at each crossing.
  */
-function lapNotchedStripPath(length: number, stripHeight: number, notchWidth: number, positions: number[], notchesOnTop: boolean): Point[] {
+export function lapNotchedStripPath(length: number, stripHeight: number, notchWidth: number, positions: number[], notchesOnTop: boolean): Point[] {
   const notchDepth = stripHeight / 2;
   const top = notchesOnTop ? notchedEdge(0, length, 0, positions, notchWidth, notchDepth, 1) : ([[0, 0], [length, 0]] as Point[]);
   const bottom = !notchesOnTop
