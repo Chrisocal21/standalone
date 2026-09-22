@@ -5,6 +5,7 @@ import { PegboardSpec, DEFAULT_PEGBOARD_SPEC, generatePegboard, validatePegboard
 import { StandSpec, DEFAULT_STAND_SPEC, generateStand, validateStandSpec } from "../src/lib/stand";
 import { ShelfBinSpec, DEFAULT_SHELF_BIN_SPEC, generateShelfBin, validateShelfBinSpec } from "../src/lib/shelf";
 import { boxToSvg } from "../src/lib/svg";
+import { LENGTH_UNITS, fromMm, nearestInchFraction, roundForDisplay, toMm } from "../src/lib/units";
 
 let failures = 0;
 
@@ -18,6 +19,20 @@ function check(label: string, condition: boolean) {
 function pathIsClosedAndFinite(points: readonly (readonly [number, number])[]): boolean {
   if (points.length < 3) return false;
   return points.every(([x, y]) => Number.isFinite(x) && Number.isFinite(y));
+}
+
+function tabbedLocalEdges(panel: { path: readonly (readonly [number, number])[]; width: number; height: number }): Set<string> {
+  const edges = new Set<string>();
+  if (panel.path.some(([, y]) => y < -1e-6)) edges.add("bottom");
+  if (panel.path.some(([x]) => x > panel.width + 1e-6)) edges.add("right");
+  if (panel.path.some(([, y]) => y > panel.height + 1e-6)) edges.add("top");
+  if (panel.path.some(([x]) => x < -1e-6)) edges.add("left");
+  return edges;
+}
+
+function sameSet(a: Set<string>, b: Iterable<string>): boolean {
+  const bSet = new Set(b);
+  return a.size === bSet.size && [...a].every((v) => bSet.has(v));
 }
 
 function svgHasNoNaN(svg: string): boolean {
@@ -284,6 +299,83 @@ check(
   const others = panels.filter((p) => p.name !== "back");
   check("shelf other panels have no holes", others.every((p) => p.holes.length === 0));
   check("shelf rejects mounting hole inset too large", validateShelfBinSpec({ ...DEFAULT_SHELF_BIN_SPEC, mountingHoleInset: 150 }).length > 0);
+}
+
+// 13. Units: every unit round-trips through mm, and the full set is what the UI expects.
+{
+  check("length units are mm/cm/m/in/ft", JSON.stringify(LENGTH_UNITS) === JSON.stringify(["mm", "cm", "m", "in", "ft"]));
+  for (const unit of LENGTH_UNITS) {
+    const roundTripped = fromMm(toMm(10, unit), unit);
+    check(`unit ${unit} round-trips through mm`, Math.abs(roundTripped - 10) < 1e-9);
+  }
+  check("1 inch is 25.4mm", Math.abs(toMm(1, "in") - 25.4) < 1e-9);
+  check("1 ft is 304.8mm", Math.abs(toMm(1, "ft") - 304.8) < 1e-9);
+  check("1 cm is 10mm", toMm(1, "cm") === 10);
+  check("1 m is 1000mm", toMm(1, "m") === 1000);
+  check("roundForDisplay doesn't round a 0.15mm kerf to 0 in any unit", LENGTH_UNITS.every((unit) => roundForDisplay(fromMm(0.15, unit), unit) !== 0));
+}
+
+// 14. Nearest-inch-fraction helper for the converter panel.
+{
+  check("0.1875in -> 3/16\"", nearestInchFraction(0.1875) === '3/16"');
+  check("0.5in -> 1/2\"", nearestInchFraction(0.5) === '1/2"');
+  check("1.0in -> 1\"", nearestInchFraction(1.0) === '1"');
+  check("1.25in -> 1 1/4\"", nearestInchFraction(1.25) === '1 1/4"');
+  check("0in -> 0\"", nearestInchFraction(0) === '0"');
+}
+
+// 15. Panel omission: each case independently hand-verified (walking the
+// box's physical corners) before being encoded here — getting the topology
+// backwards would silently flatten the wrong side instead of the missing one.
+{
+  const withoutLeft = generateBox({ ...DEFAULT_BOX_SPEC, omitPanels: ["left"] });
+  const byName = Object.fromEntries(withoutLeft.map((p) => [p.name, p]));
+  check("omit left: correct panels present", JSON.stringify(Object.keys(byName).sort()) === JSON.stringify(["back", "bottom", "front", "right"]));
+  check("omit left: front edges", sameSet(tabbedLocalEdges(byName.front), ["bottom", "right"]));
+  check("omit left: back edges", sameSet(tabbedLocalEdges(byName.back), ["bottom", "right"]));
+  check("omit left: bottom edges", sameSet(tabbedLocalEdges(byName.bottom), ["bottom", "right", "top"]));
+  check("omit left: right wall untouched", sameSet(tabbedLocalEdges(byName.right), ["bottom", "right", "left"]));
+}
+
+{
+  const withoutFront = generateBox({ ...DEFAULT_BOX_SPEC, omitPanels: ["front"] });
+  const byName = Object.fromEntries(withoutFront.map((p) => [p.name, p]));
+  check("omit front: correct panels present", JSON.stringify(Object.keys(byName).sort()) === JSON.stringify(["back", "bottom", "left", "right"]));
+  check("omit front: left edges", sameSet(tabbedLocalEdges(byName.left), ["bottom", "right"]));
+  check("omit front: right edges", sameSet(tabbedLocalEdges(byName.right), ["bottom", "right"]));
+  check("omit front: bottom edges", sameSet(tabbedLocalEdges(byName.bottom), ["right", "top", "left"]));
+  check("omit front: back wall untouched", sameSet(tabbedLocalEdges(byName.back), ["bottom", "right", "left"]));
+}
+
+{
+  const withoutBottom = generateBox({ ...DEFAULT_BOX_SPEC, omitPanels: ["bottom"] });
+  const byName = Object.fromEntries(withoutBottom.map((p) => [p.name, p]));
+  check("omit bottom: correct panels present", JSON.stringify(Object.keys(byName).sort()) === JSON.stringify(["back", "front", "left", "right"]));
+  for (const name of ["front", "back", "left", "right"]) {
+    check(`omit bottom: ${name} edges`, sameSet(tabbedLocalEdges(byName[name]), ["right", "left"]));
+  }
+}
+
+check(
+  "omitting every panel is rejected",
+  validateBoxSpec({ ...DEFAULT_BOX_SPEC, omitPanels: ["front", "back", "left", "right", "bottom"] }).length > 0
+);
+
+{
+  const panels = generateBox({ ...DEFAULT_BOX_SPEC, omitPanels: ["left", "back"] });
+  check("omit left+back: 3 panels remain", panels.length === 3);
+  const svg = boxToSvg(panels);
+  check("omit left+back: svg has no NaN", svgHasNoNaN(svg));
+  check("omit left+back: svg has 3 <path id=", svg.match(/<path id=/g)?.length === 3);
+}
+
+// 16. Default lid_style="none" flattens wall top edges (real bug fixed alongside panel omission).
+{
+  const front = generateBox(DEFAULT_BOX_SPEC)[0];
+  check("default (no lid) wall top edge is flat", !tabbedLocalEdges(front).has("top"));
+  check("default (no lid) wall bottom edge stays tabbed", tabbedLocalEdges(front).has("bottom"));
+  const frontWithLid = generateBox({ ...DEFAULT_BOX_SPEC, lidStyle: "flat" })[0];
+  check("flat-lid wall top edge stays tabbed", tabbedLocalEdges(frontWithLid).has("top"));
 }
 
 if (failures === 0) {

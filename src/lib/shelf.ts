@@ -4,7 +4,7 @@
  * files; this is a browser-side reimplementation for the live preview.
  */
 
-import { BoxSpec, JOINT_TYPES, JointType, Panel, circlePath, generateBox } from "./geometry";
+import { BoxSpec, JOINT_TYPES, JointType, Panel, StructuralPanel, circlePath, generateBox } from "./geometry";
 
 export interface ShelfBinSpec {
   width: number;
@@ -17,6 +17,7 @@ export interface ShelfBinSpec {
   mountingHoleDiameter: number;
   mountingHoleInset: number;
   stackable: boolean;
+  omitPanels: StructuralPanel[];
 }
 
 export const DEFAULT_SHELF_BIN_SPEC: ShelfBinSpec = {
@@ -30,6 +31,7 @@ export const DEFAULT_SHELF_BIN_SPEC: ShelfBinSpec = {
   mountingHoleDiameter: 4,
   mountingHoleInset: 10,
   stackable: false,
+  omitPanels: [],
 };
 
 export function validateShelfBinSpec(spec: ShelfBinSpec): string[] {
@@ -64,6 +66,7 @@ export function generateShelfBin(spec: ShelfBinSpec): Panel[] {
     dividerRows: 0,
     dividerColumns: 0,
     stackable: spec.stackable,
+    omitPanels: spec.omitPanels,
   };
   const panels = generateBox(boxSpec);
   const inset = spec.mountingHoleInset;

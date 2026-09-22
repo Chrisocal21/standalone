@@ -1,7 +1,8 @@
 "use client";
 
 import { StandSpec } from "@/lib/stand";
-import { FieldSpec, NumberField } from "./field";
+import { LengthUnit } from "@/lib/units";
+import { CollapsibleSection, FieldSpec, NumberField } from "./field";
 import styles from "./box-tool.module.css";
 
 type NumericField = keyof StandSpec;
@@ -16,24 +17,22 @@ const dimensionFields: FieldSpec<NumericField>[] = [
 interface StandControlsProps {
   spec: StandSpec;
   setSpec: (updater: (current: StandSpec) => StandSpec) => void;
+  unit: LengthUnit;
 }
 
-export default function StandControls({ spec, setSpec }: StandControlsProps) {
+export default function StandControls({ spec, setSpec, unit }: StandControlsProps) {
   function updateField(key: NumericField, value: number) {
     setSpec((current) => ({ ...current, [key]: value }));
   }
 
   return (
-    <>
-      <h2 className={`${styles.sectionLabel} mono`}>dimensions</h2>
+    <CollapsibleSection title="Dimensions">
       <div className={styles.fields}>
         {dimensionFields.map((field) => (
-          <NumberField key={field.key} field={field} value={spec[field.key]} onChange={(value) => updateField(field.key, value)} />
+          <NumberField key={field.key} field={field} value={spec[field.key]} onChange={(value) => updateField(field.key, value)} unit={unit} />
         ))}
       </div>
-      <p className={`${styles.hintText} mono`}>
-        two identical legs cross-lap into a free-standing X; right angle only, no lean angle yet
-      </p>
-    </>
+      <p className={`${styles.hintText} mono`}>two identical legs cross-lap into a free-standing X; right angle only, no lean angle yet</p>
+    </CollapsibleSection>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { BoxSpec, JOINT_TYPES, JointType, LID_STYLES, LidStyle } from "@/lib/geometry";
-import { FieldSpec, NumberField, Segmented } from "./field";
+import { LengthUnit } from "@/lib/units";
+import { CollapsibleSection, FieldSpec, NumberField, PanelOmissionControl, Segmented } from "./field";
 import styles from "./box-tool.module.css";
 
 type NumericField = Extract<
@@ -17,11 +18,11 @@ const dimensionFields: FieldSpec<NumericField>[] = [
   { key: "kerf", label: "Kerf", unit: "mm", step: 0.01, min: 0 },
 ];
 
-const fingerField: FieldSpec<NumericField> = { key: "fingers", label: "Fingers per edge", unit: "", step: 2, min: 2 };
-const dovetailField: FieldSpec<NumericField> = { key: "dovetailAngle", label: "Dovetail angle", unit: "deg", step: 1, min: 1 };
+const fingerField: FieldSpec<NumericField> = { key: "fingers", label: "Fingers per edge", unit: "", step: 2, min: 2, isLength: false };
+const dovetailField: FieldSpec<NumericField> = { key: "dovetailAngle", label: "Dovetail angle", unit: "deg", step: 1, min: 1, isLength: false };
 const cornerRadiusField: FieldSpec<NumericField> = { key: "cornerRadius", label: "Corner radius", unit: "mm", step: 0.1, min: 0 };
-const dividerRowField: FieldSpec<NumericField> = { key: "dividerRows", label: "Dividers (width-wise)", unit: "", step: 1, min: 0 };
-const dividerColumnField: FieldSpec<NumericField> = { key: "dividerColumns", label: "Dividers (depth-wise)", unit: "", step: 1, min: 0 };
+const dividerRowField: FieldSpec<NumericField> = { key: "dividerRows", label: "Dividers (width-wise)", unit: "", step: 1, min: 0, isLength: false };
+const dividerColumnField: FieldSpec<NumericField> = { key: "dividerColumns", label: "Dividers (depth-wise)", unit: "", step: 1, min: 0, isLength: false };
 
 const jointLabels: Record<JointType, string> = {
   finger: "Finger",
@@ -40,73 +41,84 @@ const lidLabels: Record<LidStyle, string> = {
 interface BoxControlsProps {
   spec: BoxSpec;
   setSpec: (updater: (current: BoxSpec) => BoxSpec) => void;
+  unit: LengthUnit;
 }
 
-export default function BoxControls({ spec, setSpec }: BoxControlsProps) {
+export default function BoxControls({ spec, setSpec, unit }: BoxControlsProps) {
   function updateField(key: NumericField, value: number) {
     setSpec((current) => ({ ...current, [key]: value }));
   }
 
   return (
     <>
-      <h2 className={`${styles.sectionLabel} mono`}>dimensions</h2>
-      <div className={styles.fields}>
-        {dimensionFields.map((field) => (
-          <NumberField key={field.key} field={field} value={spec[field.key]} onChange={(value) => updateField(field.key, value)} />
-        ))}
-      </div>
+      <CollapsibleSection title="Dimensions">
+        <div className={styles.fields}>
+          {dimensionFields.map((field) => (
+            <NumberField key={field.key} field={field} value={spec[field.key]} onChange={(value) => updateField(field.key, value)} unit={unit} />
+          ))}
+        </div>
+      </CollapsibleSection>
 
-      <h2 className={`${styles.sectionLabel} ${styles.sectionLabelSpaced} mono`}>joint</h2>
-      <div className={styles.field}>
-        <Segmented
-          options={JOINT_TYPES}
-          labels={jointLabels}
-          value={spec.joint}
-          onChange={(joint) => setSpec((current) => ({ ...current, joint }))}
-          ariaLabel="Joint type"
-        />
-      </div>
-      <div className={styles.fields}>
-        {(spec.joint === "finger" || spec.joint === "dovetail") && (
-          <NumberField field={fingerField} value={spec.fingers} onChange={(value) => updateField("fingers", value)} />
+      <CollapsibleSection title="Joint">
+        <div className={styles.field}>
+          <Segmented
+            options={JOINT_TYPES}
+            labels={jointLabels}
+            value={spec.joint}
+            onChange={(joint) => setSpec((current) => ({ ...current, joint }))}
+            ariaLabel="Joint type"
+          />
+        </div>
+        <div className={`${styles.fields} ${styles.fieldsSpaced}`}>
+          {(spec.joint === "finger" || spec.joint === "dovetail") && (
+            <NumberField field={fingerField} value={spec.fingers} onChange={(value) => updateField("fingers", value)} unit={unit} />
+          )}
+          {spec.joint === "dovetail" && (
+            <NumberField field={dovetailField} value={spec.dovetailAngle} onChange={(value) => updateField("dovetailAngle", value)} unit={unit} />
+          )}
+          <NumberField field={cornerRadiusField} value={spec.cornerRadius} onChange={(value) => updateField("cornerRadius", value)} unit={unit} />
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Lid" defaultOpen={false}>
+        <div className={styles.field}>
+          <Segmented
+            options={LID_STYLES}
+            labels={lidLabels}
+            value={spec.lidStyle}
+            onChange={(lidStyle) => setSpec((current) => ({ ...current, lidStyle }))}
+            ariaLabel="Lid style"
+          />
+        </div>
+        {spec.lidStyle === "hinged" && (
+          <p className={`${styles.hintText} mono`}>hinge uses a separate living-hinge strip, glued across the seam</p>
         )}
-        {spec.joint === "dovetail" && (
-          <NumberField field={dovetailField} value={spec.dovetailAngle} onChange={(value) => updateField("dovetailAngle", value)} />
+        {spec.lidStyle === "slide" && (
+          <p className={`${styles.hintText} mono`}>lid slides between two glued-on guide rails, not a milled groove</p>
         )}
-        <NumberField field={cornerRadiusField} value={spec.cornerRadius} onChange={(value) => updateField("cornerRadius", value)} />
-      </div>
+      </CollapsibleSection>
 
-      <h2 className={`${styles.sectionLabel} ${styles.sectionLabelSpaced} mono`}>lid</h2>
-      <div className={styles.field}>
-        <Segmented
-          options={LID_STYLES}
-          labels={lidLabels}
-          value={spec.lidStyle}
-          onChange={(lidStyle) => setSpec((current) => ({ ...current, lidStyle }))}
-          ariaLabel="Lid style"
-        />
-      </div>
-      {spec.lidStyle === "hinged" && (
-        <p className={`${styles.hintText} mono`}>hinge uses a separate living-hinge strip, glued across the seam</p>
-      )}
-      {spec.lidStyle === "slide" && (
-        <p className={`${styles.hintText} mono`}>lid slides between two glued-on guide rails, not a milled groove</p>
-      )}
+      <CollapsibleSection title="Dividers" defaultOpen={false}>
+        <div className={styles.fields}>
+          <NumberField field={dividerRowField} value={spec.dividerRows} onChange={(value) => updateField("dividerRows", value)} unit={unit} />
+          <NumberField field={dividerColumnField} value={spec.dividerColumns} onChange={(value) => updateField("dividerColumns", value)} unit={unit} />
+        </div>
+      </CollapsibleSection>
 
-      <h2 className={`${styles.sectionLabel} ${styles.sectionLabelSpaced} mono`}>dividers</h2>
-      <div className={styles.fields}>
-        <NumberField field={dividerRowField} value={spec.dividerRows} onChange={(value) => updateField("dividerRows", value)} />
-        <NumberField field={dividerColumnField} value={spec.dividerColumns} onChange={(value) => updateField("dividerColumns", value)} />
-      </div>
-
-      <label className={styles.checkboxField}>
-        <input
-          type="checkbox"
-          checked={spec.stackable}
-          onChange={(event) => setSpec((current) => ({ ...current, stackable: event.target.checked }))}
-        />
-        <span>Stackable (adds a collar accessory)</span>
-      </label>
+      <CollapsibleSection title="Sides & accessories" defaultOpen={false}>
+        <PanelOmissionControl value={spec.omitPanels} onChange={(omitPanels) => setSpec((current) => ({ ...current, omitPanels }))} />
+        <p className={`${styles.hintText} mono`}>
+          uncheck a side to leave it open — neighboring panels get a flat edge there instead of tabs
+        </p>
+        <label className={styles.checkboxField}>
+          <input
+            type="checkbox"
+            checked={spec.stackable}
+            onChange={(event) => setSpec((current) => ({ ...current, stackable: event.target.checked }))}
+          />
+          <span>Stackable (adds a collar accessory)</span>
+        </label>
+      </CollapsibleSection>
     </>
   );
 }

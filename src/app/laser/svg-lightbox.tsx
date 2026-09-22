@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
+import { useZoomPan } from "./use-zoom-pan";
 import styles from "./svg-lightbox.module.css";
 
 interface SvgLightboxProps {
@@ -9,14 +10,8 @@ interface SvgLightboxProps {
   onClose: () => void;
 }
 
-const MIN_SCALE = 0.25;
-const MAX_SCALE = 8;
-
 export default function SvgLightbox({ svg, title, onClose }: SvgLightboxProps) {
-  const [scale, setScale] = useState(1);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const [dragging, setDragging] = useState(false);
-  const dragOrigin = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
+  const { scale, offset, dragging, zoomBy, reset, handleWheel, handlePointerDown, handlePointerMove, endDrag } = useZoomPan();
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -30,40 +25,6 @@ export default function SvgLightbox({ svg, title, onClose }: SvgLightboxProps) {
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [onClose]);
-
-  function zoomBy(factor: number) {
-    setScale((current) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, current * factor)));
-  }
-
-  function handleWheel(event: React.WheelEvent) {
-    event.preventDefault();
-    zoomBy(event.deltaY < 0 ? 1.12 : 1 / 1.12);
-  }
-
-  function handlePointerDown(event: React.PointerEvent) {
-    event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    dragOrigin.current = { startX: event.clientX, startY: event.clientY, originX: offset.x, originY: offset.y };
-    setDragging(true);
-  }
-
-  function handlePointerMove(event: React.PointerEvent) {
-    if (!dragOrigin.current) return;
-    setOffset({
-      x: dragOrigin.current.originX + (event.clientX - dragOrigin.current.startX),
-      y: dragOrigin.current.originY + (event.clientY - dragOrigin.current.startY),
-    });
-  }
-
-  function endDrag() {
-    dragOrigin.current = null;
-    setDragging(false);
-  }
-
-  function reset() {
-    setScale(1);
-    setOffset({ x: 0, y: 0 });
-  }
 
   return (
     <div className={styles.overlay} onClick={onClose}>

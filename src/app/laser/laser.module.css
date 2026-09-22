@@ -1,33 +1,38 @@
 .page {
-  max-width: 1080px;
+  flex: 1;
+  min-height: 0;
   margin: 0 auto;
-  padding: 56px 32px 96px;
+  width: 100%;
+  padding: 16px 24px 24px;
   display: flex;
   flex-direction: column;
-  gap: 40px;
+  gap: 12px;
 }
 
 .header {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  max-width: 640px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  column-gap: 12px;
+  row-gap: 2px;
 }
 
 .eyebrow {
-  font-size: 11px;
-  letter-spacing: 0.16em;
+  font-size: 10px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--accent);
 }
 
 .title {
-  font-size: 34px;
+  font-size: 18px;
+  font-weight: 600;
   letter-spacing: -0.01em;
 }
 
 .lede {
-  font-size: 14px;
-  line-height: 1.6;
-  color: var(--ink-soft);
+  flex-basis: 100%;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-faint);
 }

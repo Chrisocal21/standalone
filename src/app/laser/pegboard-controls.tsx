@@ -1,7 +1,8 @@
 "use client";
 
 import { PegboardSpec } from "@/lib/pegboard";
-import { FieldSpec, NumberField } from "./field";
+import { LengthUnit } from "@/lib/units";
+import { CollapsibleSection, FieldSpec, NumberField } from "./field";
 import styles from "./box-tool.module.css";
 
 type NumericField = keyof PegboardSpec;
@@ -27,36 +28,40 @@ const mountingFields: FieldSpec<NumericField>[] = [
 interface PegboardControlsProps {
   spec: PegboardSpec;
   setSpec: (updater: (current: PegboardSpec) => PegboardSpec) => void;
+  unit: LengthUnit;
 }
 
-export default function PegboardControls({ spec, setSpec }: PegboardControlsProps) {
+export default function PegboardControls({ spec, setSpec, unit }: PegboardControlsProps) {
   function updateField(key: NumericField, value: number) {
     setSpec((current) => ({ ...current, [key]: value }));
   }
 
   return (
     <>
-      <h2 className={`${styles.sectionLabel} mono`}>dimensions</h2>
-      <div className={styles.fields}>
-        {dimensionFields.map((field) => (
-          <NumberField key={field.key} field={field} value={spec[field.key]} onChange={(value) => updateField(field.key, value)} />
-        ))}
-      </div>
+      <CollapsibleSection title="Dimensions">
+        <div className={styles.fields}>
+          {dimensionFields.map((field) => (
+            <NumberField key={field.key} field={field} value={spec[field.key]} onChange={(value) => updateField(field.key, value)} unit={unit} />
+          ))}
+        </div>
+      </CollapsibleSection>
 
-      <h2 className={`${styles.sectionLabel} ${styles.sectionLabelSpaced} mono`}>peg holes</h2>
-      <div className={styles.fields}>
-        {holeFields.map((field) => (
-          <NumberField key={field.key} field={field} value={spec[field.key]} onChange={(value) => updateField(field.key, value)} />
-        ))}
-      </div>
-      <p className={`${styles.hintText} mono`}>defaults match the real-world pegboard standard: 6.35mm holes on a 25.4mm pitch</p>
+      <CollapsibleSection title="Peg holes" defaultOpen={false}>
+        <div className={styles.fields}>
+          {holeFields.map((field) => (
+            <NumberField key={field.key} field={field} value={spec[field.key]} onChange={(value) => updateField(field.key, value)} unit={unit} />
+          ))}
+        </div>
+        <p className={`${styles.hintText} mono`}>defaults match the real-world pegboard standard: 6.35mm holes on a 25.4mm pitch</p>
+      </CollapsibleSection>
 
-      <h2 className={`${styles.sectionLabel} ${styles.sectionLabelSpaced} mono`}>wall mounting</h2>
-      <div className={styles.fields}>
-        {mountingFields.map((field) => (
-          <NumberField key={field.key} field={field} value={spec[field.key]} onChange={(value) => updateField(field.key, value)} />
-        ))}
-      </div>
+      <CollapsibleSection title="Wall mounting" defaultOpen={false}>
+        <div className={styles.fields}>
+          {mountingFields.map((field) => (
+            <NumberField key={field.key} field={field} value={spec[field.key]} onChange={(value) => updateField(field.key, value)} unit={unit} />
+          ))}
+        </div>
+      </CollapsibleSection>
     </>
   );
 }

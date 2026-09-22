@@ -6,9 +6,11 @@
 
 export type JointType = "finger" | "dovetail" | "rabbet" | "mortise_tenon";
 export type LidStyle = "none" | "flat" | "slide" | "hinged";
+export type StructuralPanel = "front" | "back" | "left" | "right" | "bottom";
 
 export const JOINT_TYPES: JointType[] = ["finger", "dovetail", "rabbet", "mortise_tenon"];
 export const LID_STYLES: LidStyle[] = ["none", "flat", "slide", "hinged"];
+export const STRUCTURAL_PANELS: StructuralPanel[] = ["front", "back", "left", "right", "bottom"];
 
 export interface BoxSpec {
   width: number;
@@ -24,6 +26,7 @@ export interface BoxSpec {
   dividerRows: number;
   dividerColumns: number;
   stackable: boolean;
+  omitPanels: StructuralPanel[];
 }
 
 export const DEFAULT_BOX_SPEC: BoxSpec = {
@@ -40,6 +43,7 @@ export const DEFAULT_BOX_SPEC: BoxSpec = {
   dividerRows: 0,
   dividerColumns: 0,
   stackable: false,
+  omitPanels: [],
 };
 
 export function validateBoxSpec(spec: BoxSpec): string[] {
@@ -71,6 +75,12 @@ export function validateBoxSpec(spec: BoxSpec): string[] {
   }
   if (spec.dividerRows < 0 || spec.dividerColumns < 0) {
     errors.push("divider counts cannot be negative");
+  }
+  if (!spec.omitPanels.every((panel) => STRUCTURAL_PANELS.includes(panel))) {
+    errors.push(`omitPanels must only contain ${STRUCTURAL_PANELS.join(", ")}`);
+  }
+  if (new Set(spec.omitPanels).size >= STRUCTURAL_PANELS.length) {
+    errors.push("omitPanels cannot remove every structural panel");
   }
   return errors;
 }
@@ -158,6 +168,16 @@ export function circlePath([cx, cy]: Point, radius: number, segments = 32): Poin
   });
 }
 
+/** A plain straight edge — no tabs, for a side with nothing to interlock with. */
+function flatEdge(length: number): Point[] {
+  return [
+    [0, 0],
+    [length, 0],
+  ];
+}
+
+export type PanelEdge = "bottom" | "right" | "top" | "left";
+
 /**
  * Trace the panel's outline clockwise from (0, 0).
  *
@@ -168,35 +188,58 @@ export function circlePath([cx, cy]: Point, radius: number, segments = 32): Poin
  * show up on every side instead of just the bottom, and it's what lets a
  * completely different edge generator (mortise/tenon) plug into the same
  * bottom/right/top/left projection without duplicating it.
+ *
+ * `flatEdges` names which of the four assembled edges should be a plain
+ * straight line instead of whatever the joint would normally cut there —
+ * for a side whose neighboring panel has been removed, or (for the top
+ * edge) when there's no lid to mate with. Rabbet already draws every edge
+ * flat unconditionally, so it's unaffected.
  */
-function panelPath(width: number, height: number, fingers: number, tabDepth: number, joint: JointType, flare = 0): Point[] {
+function panelPath(
+  width: number,
+  height: number,
+  fingers: number,
+  tabDepth: number,
+  joint: JointType,
+  flare = 0,
+  flatEdges: readonly PanelEdge[] = []
+): Point[] {
   if (joint === "rabbet") {
     return rectPath(width, height);
   }
 
-  const bottomEdge: (length: number) => Point[] =
+  const primaryEdge: (length: number) => Point[] =
     joint === "mortise_tenon"
       ? (length) => mortiseTenonEdgePoints(length, tabDepth)
       : (length) => edgePoints(length, fingers, tabDepth, false, flare);
-  const topEdge: (length: number) => Point[] =
+  const secondaryEdge: (length: number) => Point[] =
     joint === "mortise_tenon"
       ? (length) => mortiseTenonEdgePoints(length, tabDepth)
       : (length) => edgePoints(length, fingers, tabDepth, true, flare);
 
-  const bottom = bottomEdge(width);
-  const right = bottomEdge(height)
+  // "right" reuses the primary-edge pattern (like the original "bottom"
+  // edge did) and "left" reuses the secondary-edge pattern (like the
+  // original "top" edge did) — this is what makes tabs on one mating
+  // panel's edge alternate correctly against notches on its neighbor's.
+  const bottomGen = flatEdges.includes("bottom") ? flatEdge : primaryEdge;
+  const rightGen = flatEdges.includes("right") ? flatEdge : primaryEdge;
+  const topGen = flatEdges.includes("top") ? flatEdge : secondaryEdge;
+  const leftGen = flatEdges.includes("left") ? flatEdge : secondaryEdge;
+
+  const bottom = bottomGen(width);
+  const right = rightGen(height)
     .slice(1)
     .map(([s, d]) => [width - d, s] as Point);
-  const top = topEdge(width)
+  const top = topGen(width)
     .slice(1)
     .map(([s, d]) => [width - s, height - d] as Point);
-  const left = topEdge(height)
+  const left = leftGen(height)
     .slice(1)
     .map(([s, d]) => [d, height - s] as Point);
   return [...bottom, ...right, ...top, ...left];
 }
 
-function makePanel(name: string, width: number, height: number, spec: BoxSpec): Panel {
+function makePanel(name: string, width: number, height: number, spec: BoxSpec, flatEdges: readonly PanelEdge[] = []): Panel {
   const cutWidth = width + spec.kerf;
   const cutHeight = height + spec.kerf;
   const tabDepth = spec.materialThickness;
@@ -205,7 +248,7 @@ function makePanel(name: string, width: number, height: number, spec: BoxSpec): 
     name,
     width: cutWidth,
     height: cutHeight,
-    path: panelPath(cutWidth, cutHeight, spec.fingers, tabDepth, spec.joint, flare),
+    path: panelPath(cutWidth, cutHeight, spec.fingers, tabDepth, spec.joint, flare, flatEdges),
     holes: [],
     cuts: [],
   };
@@ -408,20 +451,61 @@ function stackingCollar(spec: BoxSpec): Panel {
 }
 
 /**
+ * Which neighboring panel each wall's local bottom/left/right edge touches.
+ *
+ * Derived from where each panel physically sits (front/back at y=0/y=depth,
+ * left/right at x=0/x=width, bottom at z=0) — front and back both touch the
+ * left wall at their local-x=0 end and the right wall at their local-x=width
+ * end, since that's just where those walls physically are; no left/right
+ * mirroring between front and back is needed. The "top" edge isn't listed
+ * here since its neighbor is the lid, not another structural panel — see
+ * wallFlatEdges below.
+ */
+const WALL_NEIGHBORS: Record<"front" | "back" | "left" | "right", Partial<Record<PanelEdge, StructuralPanel>>> = {
+  front: { bottom: "bottom", left: "left", right: "right" },
+  back: { bottom: "bottom", left: "left", right: "right" },
+  left: { bottom: "bottom", left: "front", right: "back" },
+  right: { bottom: "bottom", left: "front", right: "back" },
+};
+
+/** Which neighboring wall each of the bottom panel's local edges touches. */
+const BOTTOM_NEIGHBORS: Record<PanelEdge, StructuralPanel> = { bottom: "front", top: "back", left: "left", right: "right" };
+
+/**
+ * Local edges of a wall panel that should be flat: either their neighboring
+ * wall/bottom was omitted, or (for "top") there's no lid.
+ */
+function wallFlatEdges(name: "front" | "back" | "left" | "right", spec: BoxSpec, present: Set<StructuralPanel>): PanelEdge[] {
+  const flat = (Object.entries(WALL_NEIGHBORS[name]) as [PanelEdge, StructuralPanel][])
+    .filter(([, neighbor]) => !present.has(neighbor))
+    .map(([edge]) => edge);
+  if (spec.lidStyle === "none") flat.push("top");
+  return flat;
+}
+
+function bottomFlatEdges(present: Set<StructuralPanel>): PanelEdge[] {
+  return (Object.entries(BOTTOM_NEIGHBORS) as [PanelEdge, StructuralPanel][]).filter(([, neighbor]) => !present.has(neighbor)).map(([edge]) => edge);
+}
+
+/**
  * Return the jointed walls and bottom, plus whatever accessories the spec asks for.
  *
  * The kerf value expands each nominal panel's cut envelope by one kerf. This
  * is a deliberately conservative first calibration model; real machine
  * tests should determine whether the local machine needs a different offset.
+ *
+ * Any of the five structural panels can be omitted via `spec.omitPanels` to
+ * open up a side; whichever remaining panels used to interlock with the
+ * missing one get a flat edge there instead of tabs pointing at nothing.
  */
 export function generateBox(spec: BoxSpec): Panel[] {
-  const panels: Panel[] = [
-    makePanel("front", spec.width, spec.height, spec),
-    makePanel("back", spec.width, spec.height, spec),
-    makePanel("left", spec.depth, spec.height, spec),
-    makePanel("right", spec.depth, spec.height, spec),
-    makePanel("bottom", spec.width, spec.depth, spec),
-  ];
+  const present = new Set(STRUCTURAL_PANELS.filter((panel) => !spec.omitPanels.includes(panel)));
+  const panels: Panel[] = [];
+  if (present.has("front")) panels.push(makePanel("front", spec.width, spec.height, spec, wallFlatEdges("front", spec, present)));
+  if (present.has("back")) panels.push(makePanel("back", spec.width, spec.height, spec, wallFlatEdges("back", spec, present)));
+  if (present.has("left")) panels.push(makePanel("left", spec.depth, spec.height, spec, wallFlatEdges("left", spec, present)));
+  if (present.has("right")) panels.push(makePanel("right", spec.depth, spec.height, spec, wallFlatEdges("right", spec, present)));
+  if (present.has("bottom")) panels.push(makePanel("bottom", spec.width, spec.depth, spec, bottomFlatEdges(present)));
 
   if (spec.lidStyle === "flat") {
     panels.push(makePanel("lid", spec.width, spec.depth, spec));

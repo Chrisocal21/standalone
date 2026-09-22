@@ -1,16 +1,150 @@
-.layout {
+.root {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/*
+ * requestFullscreen() is called on this element, so only it (and its
+ * descendants) render in fullscreen — the site nav/header/footer and the
+ * page's own title block are outside it and simply aren't part of the
+ * fullscreen view. The UA default background for :fullscreen can be black,
+ * so repaint it with the app's own paper background and give the content
+ * a little breathing room off the screen edge.
+ */
+.root:fullscreen,
+.root:-webkit-full-screen {
+  width: 100vw;
+  height: 100vh;
+  padding: 12px;
+  background: var(--paper);
+  background-image: linear-gradient(var(--grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 16px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-bottom: none;
+  flex-shrink: 0;
+}
+
+.topBarGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topBarLabel {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.workspace {
+  flex: 1;
+  min-height: 0;
   display: grid;
-  grid-template-columns: 300px 1fr;
-  align-items: start;
+  grid-template-columns: 56px 1fr 280px;
+  align-items: stretch;
   gap: 1px;
   background: var(--rule);
   border: 1px solid var(--rule);
 }
 
-.controls,
-.preview {
+.shapeRail {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--rule);
+  height: 100%;
+  overflow-y: auto;
+}
+
+.shapeButton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 2px;
   background: var(--paper);
-  padding: 24px;
+  border: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.shapeButton svg {
+  width: 20px;
+  height: 20px;
+}
+
+.shapeButtonLabel {
+  font-size: 8px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.shapeButton:hover {
+  color: var(--ink);
+  background: var(--paper-raised);
+}
+
+.shapeButtonActive,
+.shapeButtonActive:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.dock {
+  background: var(--paper);
+  padding: 18px;
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.section {
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.section:first-child {
+  padding-top: 0;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 14px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.sectionHeader .sectionLabel {
+  margin-bottom: 0;
+}
+
+.sectionToggle {
+  font-size: 13px;
+  color: var(--ink-faint);
+  width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.sectionBody {
+  padding-bottom: 16px;
 }
 
 .sectionLabel {
@@ -18,13 +152,21 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ink-faint);
-  margin-bottom: 18px;
 }
 
-.sectionLabelSpaced {
-  margin-top: 28px;
-  padding-top: 20px;
-  border-top: 1px solid var(--rule-soft);
+.converterToggle {
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--ink-soft);
+  padding: 5px 10px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.converterToggle:hover {
+  border-color: var(--ink);
+  color: var(--ink);
 }
 
 .hintText {
@@ -37,8 +179,11 @@
 .fields {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  margin-top: 20px;
+  gap: 14px;
+}
+
+.fieldsSpaced {
+  margin-top: 14px;
 }
 
 .field {
@@ -51,26 +196,24 @@
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   border: 1px solid var(--rule);
+  overflow: hidden;
 }
 
+/*
+ * Each option draws its own full border and overlaps the previous one by
+ * 1px (negative margin), so the grid renders clean single-pixel borders
+ * regardless of how many options there are or how the last row fills in —
+ * no nth-child arithmetic that assumes a fixed, even column count.
+ */
 .segmentedOption {
   padding: 9px 8px;
+  margin: -1px 0 0 -1px;
   background: var(--paper-raised);
-  border: none;
-  border-right: 1px solid var(--rule);
-  border-bottom: 1px solid var(--rule);
+  border: 1px solid var(--rule);
   font-size: 11px;
   letter-spacing: 0.02em;
   color: var(--ink-soft);
   cursor: pointer;
-}
-
-.segmentedOption:nth-child(even) {
-  border-right: none;
-}
-
-.segmentedOption:nth-last-child(-n+2) {
-  border-bottom: none;
 }
 
 .segmentedOption:hover {
@@ -90,10 +233,31 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 20px;
+  margin-top: 14px;
   font-size: 12px;
   color: var(--ink-soft);
   cursor: pointer;
+}
+
+.panelGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px 16px;
+}
+
+.panelCheckbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.panelCheckbox input {
+  accent-color: var(--accent);
+  width: 14px;
+  height: 14px;
 }
 
 .checkboxField input {
@@ -159,17 +323,16 @@
 }
 
 .download {
-  margin-top: 24px;
-  width: 100%;
-  padding: 11px 14px;
+  padding: 8px 16px;
   background: var(--ink);
   color: var(--paper);
   border: 1px solid var(--ink);
-  font-size: 12px;
+  font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   cursor: pointer;
   transition: background-color 120ms ease, color 120ms ease;
+  flex-shrink: 0;
 }
 
 .download:hover:not(:disabled) {
@@ -184,9 +347,13 @@
   cursor: not-allowed;
 }
 
-.preview {
+.canvasPane {
   display: flex;
   flex-direction: column;
+  background: var(--paper);
+  padding: 18px;
+  min-height: 420px;
+  height: 100%;
 }
 
 .previewHead {
@@ -194,11 +361,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 18px;
-}
-
-.previewHead .sectionLabel {
-  margin-bottom: 0;
+  margin-bottom: 14px;
 }
 
 .previewMeta {
@@ -210,9 +373,80 @@
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
+  flex: 1;
   min-height: 360px;
   border: 1px dashed var(--rule-soft);
   padding: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.canvasZoomable {
+  cursor: grab;
+  touch-action: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.canvasDragging {
+  cursor: grabbing;
+}
+
+.zoomTransform {
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.zoomTransform .svgWrap {
+  width: auto;
+}
+
+.zoomTransform .svgWrap :global(svg) {
+  width: min(70vw, 900px);
+  height: auto;
+}
+
+.zoomControls {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  padding: 6px 8px;
+}
+
+.zoomControls button {
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--ink-soft);
+  padding: 4px 9px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.zoomControls button:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.zoomReadout {
+  font-size: 11px;
+  color: var(--ink-faint);
+  min-width: 38px;
+  text-align: center;
+}
+
+.zoomHint {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--ink-faint);
+  pointer-events: none;
 }
 
 .canvasEmpty {
@@ -272,8 +506,21 @@
   stroke-width: 0.5;
 }
 
-@media (max-width: 760px) {
-  .layout {
+@media (max-width: 900px) {
+  .workspace {
     grid-template-columns: 1fr;
+  }
+
+  .shapeRail {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  .dock {
+    height: auto;
+  }
+
+  .topBar {
+    flex-wrap: wrap;
   }
 }

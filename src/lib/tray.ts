@@ -4,7 +4,7 @@
  * files; this is a browser-side reimplementation for the live preview.
  */
 
-import { BoxSpec, JOINT_TYPES, JointType, Panel, generateBox, validateBoxSpec } from "./geometry";
+import { BoxSpec, JOINT_TYPES, JointType, Panel, StructuralPanel, generateBox, validateBoxSpec } from "./geometry";
 
 export interface TraySpec {
   width: number;
@@ -17,6 +17,7 @@ export interface TraySpec {
   fingers: number;
   joint: JointType;
   cornerRadius: number;
+  omitPanels: StructuralPanel[];
 }
 
 export const DEFAULT_TRAY_SPEC: TraySpec = {
@@ -30,6 +31,7 @@ export const DEFAULT_TRAY_SPEC: TraySpec = {
   fingers: 4,
   joint: "finger",
   cornerRadius: 0,
+  omitPanels: [],
 };
 
 function asBoxSpec(spec: TraySpec): BoxSpec {
@@ -47,6 +49,7 @@ function asBoxSpec(spec: TraySpec): BoxSpec {
     dividerRows: spec.rows,
     dividerColumns: spec.columns,
     stackable: false,
+    omitPanels: spec.omitPanels,
   };
 }
 
