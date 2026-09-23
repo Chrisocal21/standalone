@@ -66,6 +66,24 @@
   background: var(--rule);
   height: 100%;
   overflow-y: auto;
+  scrollbar-color: var(--ink-soft) var(--paper);
+}
+
+.shapeRail::-webkit-scrollbar {
+  width: 10px;
+}
+
+.shapeRail::-webkit-scrollbar-track {
+  background: var(--paper);
+}
+
+.shapeRail::-webkit-scrollbar-thumb {
+  background: var(--ink-soft);
+  border-radius: 5px;
+}
+
+.shapeRail::-webkit-scrollbar-thumb:hover {
+  background: var(--ink);
 }
 
 .shapeButton {
@@ -109,6 +127,24 @@
   height: 100%;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-color: var(--ink-soft) var(--paper);
+}
+
+.dock::-webkit-scrollbar {
+  width: 10px;
+}
+
+.dock::-webkit-scrollbar-track {
+  background: var(--paper);
+}
+
+.dock::-webkit-scrollbar-thumb {
+  background: var(--ink-soft);
+  border-radius: 5px;
+}
+
+.dock::-webkit-scrollbar-thumb:hover {
+  background: var(--ink);
 }
 
 .section {
@@ -237,6 +273,63 @@
   font-size: 12px;
   color: var(--ink-soft);
   cursor: pointer;
+}
+
+.sceneCatalog {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.sceneCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--rule);
+  background: var(--paper-raised);
+  text-align: left;
+  cursor: pointer;
+}
+
+.sceneCard:hover:not(:disabled) {
+  border-color: var(--ink-soft);
+}
+
+.sceneCard:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.sceneCardActive {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.sceneCardActive:hover {
+  border-color: var(--ink);
+}
+
+.sceneCardLabel {
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+}
+
+.sceneCardActive .sceneCardLabel {
+  color: var(--paper);
+}
+
+.sceneCardBlurb {
+  font-size: 10px;
+  color: var(--ink-faint);
+}
+
+.sceneCardActive .sceneCardBlurb {
+  color: var(--paper);
+  opacity: 0.75;
 }
 
 .panelGrid {

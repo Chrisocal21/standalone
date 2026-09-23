@@ -9,6 +9,7 @@ import { StandSpec, DEFAULT_STAND_SPEC, generateStand, validateStandSpec } from 
 import { ShelfBinSpec, DEFAULT_SHELF_BIN_SPEC, generateShelfBin, validateShelfBinSpec } from "@/lib/shelf";
 import { DEFAULT_WORKSHOP_ORGANIZER_SPEC, generateWorkshopOrganizer, validateWorkshopOrganizerSpec, WorkshopOrganizerSpec } from "@/lib/builds";
 import { DEFAULT_FUJI_SCENE_SPEC, FujiSceneSpec, generateFujiSunset, validateFujiSceneSpec } from "@/lib/layered-scenes";
+import { DEFAULT_SCENE_ID, SCENE_CATALOG } from "@/lib/scene-catalog";
 import { boxToSvg, layeredSceneToSvg } from "@/lib/svg";
 import { LENGTH_UNITS, LengthUnit, fromMm, roundForDisplay } from "@/lib/units";
 import SvgLightbox from "./svg-lightbox";
@@ -49,7 +50,7 @@ const shapeFullLabels: Record<Shape, string> = {
   stand: "Stand",
   shelf: "Bin",
   build: "Organizer",
-  scene: "Mt. Fuji",
+  scene: "Scene",
 };
 
 const unitLabels: Record<LengthUnit, string> = {
@@ -80,6 +81,7 @@ interface FullscreenDocument extends Document {
 
 export default function BoxTool() {
   const [shape, setShape] = useState<Shape>("box");
+  const [sceneId, setSceneId] = useState<string>(DEFAULT_SCENE_ID);
   const [scenePreview, setScenePreview] = useState<"assembly" | "cut">("assembly");
   const [unit, setUnit] = useState<LengthUnit>("mm");
   const [boxSpec, setBoxSpec] = useState<BoxSpec>(DEFAULT_BOX_SPEC);
@@ -115,6 +117,11 @@ export default function BoxTool() {
   useEffect(() => {
     resetZoomPan();
   }, [shape, isFullscreen, resetZoomPan]);
+
+  // A different scene within the Scene category also starts from a clean view.
+  useEffect(() => {
+    resetZoomPan();
+  }, [sceneId, resetZoomPan]);
 
   async function toggleFullscreen() {
     const doc = document as FullscreenDocument;
@@ -201,6 +208,16 @@ export default function BoxTool() {
         };
       }
       case "scene": {
+        if (sceneId !== "fuji-sunset") {
+          const entry = SCENE_CATALOG.find((option) => option.id === sceneId);
+          return {
+            errors: [`${entry?.label ?? "this scene"} isn't built yet — pick Mt. Fuji, or check back later`],
+            panels: null,
+            cornerRadius: 0,
+            filename: "scene",
+            controls: null,
+          };
+        }
         const errors = validateFujiSceneSpec(fujiSceneSpec);
         const panels = errors.length === 0 ? generateFujiSunset(fujiSceneSpec) : null;
         return {
@@ -213,7 +230,7 @@ export default function BoxTool() {
         };
       }
     }
-  }, [shape, unit, boxSpec, cylinderSpec, traySpec, pegboardSpec, standSpec, shelfSpec, organizerSpec, fujiSceneSpec]);
+  }, [shape, sceneId, unit, boxSpec, cylinderSpec, traySpec, pegboardSpec, standSpec, shelfSpec, organizerSpec, fujiSceneSpec]);
 
   const { svg, panelCount, layout } = useMemo(() => {
     if (!active.panels) {
@@ -347,6 +364,25 @@ export default function BoxTool() {
         </section>
 
         <aside className={styles.dock} aria-label="Shape parameters">
+          {shape === "scene" && (
+            <div className={styles.sceneCatalog} role="radiogroup" aria-label="Scene">
+              {SCENE_CATALOG.map((entry) => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={sceneId === entry.id}
+                  disabled={!entry.available}
+                  className={`${styles.sceneCard} ${sceneId === entry.id ? styles.sceneCardActive : ""}`}
+                  onClick={() => setSceneId(entry.id)}
+                >
+                  <span className={`${styles.sceneCardLabel} mono`}>{entry.label}</span>
+                  <span className={`${styles.sceneCardBlurb} mono`}>{entry.available ? entry.blurb : "coming soon"}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
           {active.controls}
 
           {active.errors.length > 0 && (
