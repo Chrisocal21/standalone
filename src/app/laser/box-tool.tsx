@@ -7,7 +7,9 @@ import { TraySpec, DEFAULT_TRAY_SPEC, generateTray, validateTraySpec } from "@/l
 import { PegboardSpec, DEFAULT_PEGBOARD_SPEC, generatePegboard, validatePegboardSpec } from "@/lib/pegboard";
 import { StandSpec, DEFAULT_STAND_SPEC, generateStand, validateStandSpec } from "@/lib/stand";
 import { ShelfBinSpec, DEFAULT_SHELF_BIN_SPEC, generateShelfBin, validateShelfBinSpec } from "@/lib/shelf";
-import { boxToSvg } from "@/lib/svg";
+import { DEFAULT_WORKSHOP_ORGANIZER_SPEC, generateWorkshopOrganizer, validateWorkshopOrganizerSpec, WorkshopOrganizerSpec } from "@/lib/builds";
+import { DEFAULT_FUJI_SCENE_SPEC, FujiSceneSpec, generateFujiSunset, validateFujiSceneSpec } from "@/lib/layered-scenes";
+import { boxToSvg, layeredSceneToSvg } from "@/lib/svg";
 import { LENGTH_UNITS, LengthUnit, fromMm, roundForDisplay } from "@/lib/units";
 import SvgLightbox from "./svg-lightbox";
 import UnitConverter from "./unit-converter";
@@ -17,14 +19,16 @@ import TrayControls from "./tray-controls";
 import PegboardControls from "./pegboard-controls";
 import StandControls from "./stand-controls";
 import ShelfControls from "./shelf-controls";
+import BuildControls from "./build-controls";
+import SceneControls from "./scene-controls";
 import { Segmented } from "./field";
 import { ShapeIcon, ShapeIconName } from "./shape-icon";
 import { useZoomPan } from "./use-zoom-pan";
 import styles from "./box-tool.module.css";
 
-type Shape = "box" | "cylinder" | "tray" | "pegboard" | "stand" | "shelf";
+type Shape = "box" | "cylinder" | "tray" | "pegboard" | "stand" | "shelf" | "build" | "scene";
 
-const SHAPES: Shape[] = ["box", "cylinder", "tray", "pegboard", "stand", "shelf"];
+const SHAPES: Shape[] = ["box", "cylinder", "tray", "pegboard", "stand", "shelf", "build", "scene"];
 
 const shapeLabels: Record<Shape, string> = {
   box: "Box",
@@ -33,6 +37,8 @@ const shapeLabels: Record<Shape, string> = {
   pegboard: "Peg",
   stand: "Stand",
   shelf: "Bin",
+  build: "Build",
+  scene: "Scene",
 };
 
 const shapeFullLabels: Record<Shape, string> = {
@@ -42,6 +48,8 @@ const shapeFullLabels: Record<Shape, string> = {
   pegboard: "Pegboard",
   stand: "Stand",
   shelf: "Bin",
+  build: "Organizer",
+  scene: "Mt. Fuji",
 };
 
 const unitLabels: Record<LengthUnit, string> = {
@@ -55,6 +63,7 @@ const unitLabels: Record<LengthUnit, string> = {
 interface ActiveShape {
   errors: string[];
   panels: Panel[] | null;
+  assemblySvg?: string;
   cornerRadius: number;
   filename: string;
   controls: ReactNode;
@@ -71,6 +80,7 @@ interface FullscreenDocument extends Document {
 
 export default function BoxTool() {
   const [shape, setShape] = useState<Shape>("box");
+  const [scenePreview, setScenePreview] = useState<"assembly" | "cut">("assembly");
   const [unit, setUnit] = useState<LengthUnit>("mm");
   const [boxSpec, setBoxSpec] = useState<BoxSpec>(DEFAULT_BOX_SPEC);
   const [cylinderSpec, setCylinderSpec] = useState<CylinderSpec>(DEFAULT_CYLINDER_SPEC);
@@ -78,6 +88,8 @@ export default function BoxTool() {
   const [pegboardSpec, setPegboardSpec] = useState<PegboardSpec>(DEFAULT_PEGBOARD_SPEC);
   const [standSpec, setStandSpec] = useState<StandSpec>(DEFAULT_STAND_SPEC);
   const [shelfSpec, setShelfSpec] = useState<ShelfBinSpec>(DEFAULT_SHELF_BIN_SPEC);
+  const [organizerSpec, setOrganizerSpec] = useState<WorkshopOrganizerSpec>(DEFAULT_WORKSHOP_ORGANIZER_SPEC);
+  const [fujiSceneSpec, setFujiSceneSpec] = useState<FujiSceneSpec>(DEFAULT_FUJI_SCENE_SPEC);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [converterOpen, setConverterOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -178,8 +190,30 @@ export default function BoxTool() {
           controls: <ShelfControls spec={shelfSpec} setSpec={setShelfSpec} unit={unit} />,
         };
       }
+      case "build": {
+        const errors = validateWorkshopOrganizerSpec(organizerSpec);
+        return {
+          errors,
+          panels: errors.length === 0 ? generateWorkshopOrganizer(organizerSpec) : null,
+          cornerRadius: 0,
+          filename: `workshop-organizer-${organizerSpec.width}x${organizerSpec.depth}`,
+          controls: <BuildControls spec={organizerSpec} setSpec={setOrganizerSpec} unit={unit} />,
+        };
+      }
+      case "scene": {
+        const errors = validateFujiSceneSpec(fujiSceneSpec);
+        const panels = errors.length === 0 ? generateFujiSunset(fujiSceneSpec) : null;
+        return {
+          errors,
+          panels,
+          assemblySvg: panels ? layeredSceneToSvg(panels) : undefined,
+          cornerRadius: 0,
+          filename: `mt-fuji-${fujiSceneSpec.sunMode}-${fujiSceneSpec.width}x${fujiSceneSpec.height}`,
+          controls: <SceneControls spec={fujiSceneSpec} setSpec={setFujiSceneSpec} unit={unit} />,
+        };
+      }
     }
-  }, [shape, unit, boxSpec, cylinderSpec, traySpec, pegboardSpec, standSpec, shelfSpec]);
+  }, [shape, unit, boxSpec, cylinderSpec, traySpec, pegboardSpec, standSpec, shelfSpec, organizerSpec, fujiSceneSpec]);
 
   const { svg, panelCount, layout } = useMemo(() => {
     if (!active.panels) {
@@ -191,6 +225,8 @@ export default function BoxTool() {
       layout: layoutSize(active.panels),
     };
   }, [active]);
+
+  const displayedSvg = shape === "scene" && scenePreview === "assembly" ? active.assemblySvg ?? svg : svg;
 
   function downloadSvg() {
     if (!svg) return;
@@ -243,7 +279,18 @@ export default function BoxTool() {
 
         <section className={styles.canvasPane} aria-label="Panel layout preview">
           <div className={styles.previewHead}>
-            <h2 className={`${styles.sectionLabel} mono`}>preview</h2>
+            <div className={styles.previewTitleGroup}>
+              <h2 className={`${styles.sectionLabel} mono`}>preview</h2>
+              {shape === "scene" && (
+                <Segmented
+                  options={["assembly", "cut"] as const}
+                  labels={{ assembly: "assembled", cut: "cut layout" }}
+                  value={scenePreview}
+                  onChange={setScenePreview}
+                  ariaLabel="Scene preview mode"
+                />
+              )}
+            </div>
             {svg && (
               <span className={`${styles.previewMeta} mono`}>
                 {panelCount} panels &middot; {roundForDisplay(fromMm(layout[0], unit), unit)} x {roundForDisplay(fromMm(layout[1], unit), unit)}{" "}
@@ -251,7 +298,7 @@ export default function BoxTool() {
               </span>
             )}
           </div>
-          {isFullscreen && svg ? (
+          {isFullscreen && displayedSvg ? (
             <div
               className={`${styles.canvas} ${styles.canvasZoomable} ${zoomPan.dragging ? styles.canvasDragging : ""}`}
               onWheel={zoomPan.handleWheel}
@@ -264,7 +311,7 @@ export default function BoxTool() {
                 className={styles.zoomTransform}
                 style={{ transform: `translate(${zoomPan.offset.x}px, ${zoomPan.offset.y}px) scale(${zoomPan.scale})` }}
               >
-                <div className={styles.svgWrap} dangerouslySetInnerHTML={{ __html: svg }} />
+                <div className={styles.svgWrap} dangerouslySetInnerHTML={{ __html: displayedSvg }} />
               </div>
               <div className={styles.zoomControls}>
                 <button type="button" className="mono" onClick={() => zoomPan.zoomBy(1 / 1.25)} aria-label="Zoom out">
@@ -282,14 +329,14 @@ export default function BoxTool() {
             </div>
           ) : (
             <div className={styles.canvas}>
-              {svg ? (
+              {displayedSvg ? (
                 <button
                   type="button"
                   className={styles.svgWrapButton}
                   onClick={() => setLightboxOpen(true)}
                   aria-label="Open preview in a zoomable lightbox"
                 >
-                  <div className={styles.svgWrap} dangerouslySetInnerHTML={{ __html: svg }} />
+                  <div className={styles.svgWrap} dangerouslySetInnerHTML={{ __html: displayedSvg }} />
                   <span className={`${styles.expandHint} mono`}>click to expand</span>
                 </button>
               ) : (
@@ -314,7 +361,7 @@ export default function BoxTool() {
         </aside>
       </div>
 
-      {lightboxOpen && svg && <SvgLightbox svg={svg} title={active.filename} onClose={() => setLightboxOpen(false)} />}
+      {lightboxOpen && displayedSvg && <SvgLightbox svg={displayedSvg} title={active.filename} onClose={() => setLightboxOpen(false)} />}
       {converterOpen && <UnitConverter onClose={() => setConverterOpen(false)} />}
     </div>
   );

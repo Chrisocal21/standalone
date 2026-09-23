@@ -157,3 +157,25 @@ export function boxToSvg(panels: Panel[], spacing = 10, cornerRadius = 0): strin
     "</svg>",
   ].join("\n");
 }
+
+/** Render full-size scene panels in their shared coordinates for an assembly preview. */
+export function layeredSceneToSvg(panels: Panel[]): string {
+  if (!panels.length) return "";
+  const width = Math.max(...panels.map((panel) => panel.width));
+  const height = Math.max(...panels.map((panel) => panel.height));
+  const colors = ["#d9e4e8", "#f0a34a", "#9aabb4", "#596c78", "#f2eee4", "#283b45"];
+  const elements: string[] = [];
+  panels.forEach((panel, index) => {
+    const fill = colors[index % colors.length];
+    elements.push(`  <path d="${pathData(panel.path, 0, 0, 0)}" fill="${fill}" stroke="#26343a" stroke-width="0.7" />`);
+    for (const hole of panel.holes) {
+      elements.push(`  <path d="${pathData(hole, 0, 0, 0)}" fill="#f8f6ef" stroke="#26343a" stroke-width="0.35" />`);
+    }
+  });
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width.toFixed(3)}mm" height="${height.toFixed(3)}mm" viewBox="0 0 ${width.toFixed(3)} ${height.toFixed(3)}">`,
+    ...elements,
+    "</svg>",
+  ].join("\n");
+}

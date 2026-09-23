@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { BoxSpec, JOINT_TYPES, JointType, LID_STYLES, LidStyle } from "@/lib/geometry";
+import { applyBoxVariant, BOX_VARIANTS, BOX_VARIANT_LABELS, BoxVariantId } from "@/lib/box-variants";
 import { LengthUnit } from "@/lib/units";
 import { CollapsibleSection, FieldSpec, NumberField, PanelOmissionControl, Segmented } from "./field";
 import styles from "./box-tool.module.css";
@@ -45,12 +47,30 @@ interface BoxControlsProps {
 }
 
 export default function BoxControls({ spec, setSpec, unit }: BoxControlsProps) {
+  const [variant, setVariant] = useState<BoxVariantId>("storage");
+
   function updateField(key: NumericField, value: number) {
     setSpec((current) => ({ ...current, [key]: value }));
   }
 
   return (
     <>
+      <CollapsibleSection title="Use case">
+        <div className={styles.field}>
+          <Segmented
+            options={BOX_VARIANTS.map(({ id }) => id)}
+            labels={BOX_VARIANT_LABELS}
+            value={variant}
+            onChange={(nextVariant) => {
+              setVariant(nextVariant);
+              setSpec((current) => applyBoxVariant(current, nextVariant));
+            }}
+            ariaLabel="Box use case"
+          />
+        </div>
+        <p className={`${styles.hintText} mono`}>{BOX_VARIANTS.find(({ id }) => id === variant)?.description}</p>
+      </CollapsibleSection>
+
       <CollapsibleSection title="Dimensions">
         <div className={styles.fields}>
           {dimensionFields.map((field) => (
@@ -80,7 +100,7 @@ export default function BoxControls({ spec, setSpec, unit }: BoxControlsProps) {
         </div>
       </CollapsibleSection>
 
-      <CollapsibleSection title="Lid" defaultOpen={false}>
+      <CollapsibleSection title="Lid / closure">
         <div className={styles.field}>
           <Segmented
             options={LID_STYLES}

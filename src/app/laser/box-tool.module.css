@@ -364,6 +364,16 @@
   margin-bottom: 14px;
 }
 
+.previewTitleGroup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.previewTitleGroup :global(.segmented) {
+  min-width: 150px;
+}
+
 .previewMeta {
   font-size: 11px;
   color: var(--ink-faint);

@@ -17,7 +17,7 @@ const commonProps = {
   strokeLinejoin: "round" as const,
 };
 
-export type ShapeIconName = "box" | "cylinder" | "tray" | "pegboard" | "stand" | "shelf";
+export type ShapeIconName = "box" | "cylinder" | "tray" | "pegboard" | "stand" | "shelf" | "build" | "scene";
 
 function BoxIcon() {
   return (
@@ -75,6 +75,25 @@ function ShelfIcon() {
   );
 }
 
+function BuildIcon() {
+  return (
+    <svg {...commonProps}>
+      <rect x="4" y="5" width="9" height="7" />
+      <rect x="11" y="12" width="9" height="7" />
+      <line x1="13" y1="8" x2="20" y2="8" />
+    </svg>
+  );
+}
+
+function SceneIcon() {
+  return (
+    <svg {...commonProps}>
+      <circle cx="17" cy="7" r="3" />
+      <path d="M4 18 10 11l3 3 3-4 4 8H4Z" />
+    </svg>
+  );
+}
+
 const ICONS: Record<ShapeIconName, () => ReactElement> = {
   box: BoxIcon,
   cylinder: CylinderIcon,
@@ -82,6 +101,8 @@ const ICONS: Record<ShapeIconName, () => ReactElement> = {
   pegboard: PegboardIcon,
   stand: StandIcon,
   shelf: ShelfIcon,
+  build: BuildIcon,
+  scene: SceneIcon,
 };
 
 export function ShapeIcon({ shape }: { shape: ShapeIconName }) {
