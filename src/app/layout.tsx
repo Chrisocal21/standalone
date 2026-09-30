@@ -23,8 +23,8 @@ export const metadata: Metadata = {
 
 const ventures = [
   { href: "/laser", label: "Laser", live: true },
-  { href: "/3d-printing", label: "3D Printing", live: false },
-  { href: "/wood-cnc", label: "Wood + CNC", live: false },
+  { href: "/3d-printing", label: "3D Printing", live: true },
+  { href: "/wood-cnc", label: "Wood + CNC", live: true },
 ];
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

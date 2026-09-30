@@ -14,15 +14,15 @@ const ventures = [
     slug: "3d-printing",
     href: "/3d-printing",
     name: "3D Printing",
-    status: "soon" as const,
-    description: "STL/mesh generation and slicing presets. Different engine, different hardware.",
+    status: "live" as const,
+    description: "Parametric enclosures (walls, floor, lid, corner bosses) and tubes/spacers — set dimensions, get a print-ready STL per part.",
   },
   {
     slug: "wood-cnc",
     href: "/wood-cnc",
     name: "Wood + CNC",
-    status: "soon" as const,
-    description: "Scope still open — material types and process to be defined.",
+    status: "live" as const,
+    description: "Feeds-and-speeds calculator — bit, material, and cut parameters in, chip-thinning-compensated feed and plunge rates out.",
   },
 ];
 
